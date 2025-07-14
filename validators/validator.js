@@ -1,36 +1,13 @@
 const { checkSchema } = require("express-validator");
 
-const authenticationValidationSchema = checkSchema({
-  phoneNumber: {
+const loginValidationSchema = checkSchema({
+  email: {
     in: ["body"],
     notEmpty: {
-      errorMessage: "Phone number is required",
+      errorMessage: "email is required",
     },
-    custom: {
-      options: (value) => {
-        // Check if the number starts with '+9610' and remove '0'
-        if (value.startsWith("+9610")) {
-          value = "+961" + value.slice(5); // Remove the '0' after '+961'
-        }
-
-        // Validate phone number pattern (you can adjust this regex if needed)
-        const phoneNumberRegex = /^\+[1-9]\d{1,14}$/; // E.164 format validation
-        if (!phoneNumberRegex.test(value)) {
-          throw new Error("Invalid phone number format");
-        }
-
-        return true;
-      },
-      errorMessage: "Invalid phone number",
-    },
-    customSanitizer: {
-      options: (value) => {
-        // Check if the number starts with '+9610' and remove '0'
-        if (value.startsWith("+9610")) {
-          value = "+961" + value.slice(5);
-        }
-        return value;
-      },
+    isEmail: {
+      errorMessage: "Invalid email format",
     },
   },
 
@@ -40,11 +17,47 @@ const authenticationValidationSchema = checkSchema({
       errorMessage: "Password is required",
     },
     isLength: {
-      options: { min: 6 },
+      options: { min: 8 },
       errorMessage: "Password must be at least 6 characters long",
     },
     matches: {
-      options: /\d/, // Example: ensure password contains at least one digit
+      options: /\d/, 
+      errorMessage: "Password must contain at least one number",
+    },
+  },
+});
+
+const registerValidationSchema = checkSchema({
+  email: {
+    in: ["body"],
+    notEmpty: {
+      errorMessage: "Email is required",
+    },
+    isEmail: {
+      errorMessage: "Invalid email format",
+    },
+  },
+  userName: {
+    in: ["body"],
+    notEmpty: {
+      errorMessage: "Username is required",
+    },
+    isLength: {
+      options: { min: 3 },
+      errorMessage: "Username must be at least 3 characters long",
+    },
+  },
+  password: {
+    in: ["body"],
+    notEmpty: {
+      errorMessage: "Password is required",
+    },
+    isLength: {
+      options: { min: 8 },
+      errorMessage: "Password must be at least 8 characters long",
+    },
+    matches: {
+      options: /\d/,
       errorMessage: "Password must contain at least one number",
     },
   },
@@ -61,6 +74,7 @@ const verifyTokenValidationSchema = checkSchema({
 
 
 module.exports = {
-  authenticationValidationSchema,
+  loginValidationSchema,
+  registerValidationSchema,
   verifyTokenValidationSchema,
 };

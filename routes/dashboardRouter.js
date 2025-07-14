@@ -1,6 +1,5 @@
 const express = require("express");
-const authController = require("../controllers/authController");
-const { webAuthenticated, pageSettings } = require("../middlewares/auth");
+
 
 const router = express.Router();
 

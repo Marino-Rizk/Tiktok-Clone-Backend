@@ -3,6 +3,7 @@ const jwt = require("../utils/jwt");
 const { validationResult } = require("express-validator");
 const helper = require("../utils/helper");
 const User = require("../models/User");
+const { default: mongoose } = require("mongoose");
 
 exports.register = async (req, res) => {
     const errors = validationResult(req);
@@ -24,15 +25,14 @@ exports.register = async (req, res) => {
             });
         }
 
-        const newUser = new User(
+        const createdUser = await User.createUser({
             userName,
             email,
             password,
-            null,
-            null,
-            null,
-        );
-        const createdUser = await User.create(newUser);
+            displayName: null,
+            imageUrl: null,
+            blurhash: null
+        });
 
         return res.status(201).json({
             userId: createdUser.id,
@@ -122,15 +122,11 @@ exports.verifyToken = (req, res) => {
             });
         }
 
-        console.log(user);
-
         return res.json({
             id: user.id,
             email: user.email,
-            fullName: user.fullName,
-            country: user.country,
-            language: user.language,
-            userRole: user.userRole,
+            userName: user.userName,
+            displayName: user.displayName,
             imageUrl: user.imageUrl,
             blurhash: user.blurhash,
         });

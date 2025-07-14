@@ -4,6 +4,12 @@ const path = require("path");
 require("dotenv").config();
 const port = process.env.PORT || 3000;
 const fileUpload = require("express-fileupload");
+const mongoose = require('mongoose');
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch((err) => console.error('MongoDB connection error:', err));
 
 app.use(
   fileUpload({
@@ -22,9 +28,9 @@ const uploadsDirectory = path.join(__dirname, "uploads");
 app.use("/uploads", express.static(uploadsDirectory));
 
 // Import routes
-const mainRoutes = require('./routes/mainRoutes');
-app.use('/', mainRoutes);
-const errorRoutes = require("./routes/errorRoutes");
+const dashboardRouter = require("./routes/dashboardRouter");
+const authRouter = require("./routes/api/v1/authRoutes")
+
 
 app.use("/", dashboardRouter);
 app.use("/api/v1/auth", authRouter);
