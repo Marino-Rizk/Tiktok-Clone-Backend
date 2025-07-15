@@ -1,4 +1,4 @@
-const { checkSchema } = require("express-validator");
+const { checkSchema, param, query } = require("express-validator");
 
 const loginValidationSchema = checkSchema({
   email: {
@@ -72,9 +72,63 @@ const verifyTokenValidationSchema = checkSchema({
   },
 });
 
+const updateProfileValidationSchema = checkSchema({
+  displayName: {
+    in: ["body"],
+    isLength: {
+      options: { min: 3 },
+      errorMessage: "name must be at least 3 characters long",
+    },
+  },
+  image: {
+    in: ["files"],
+    optional: true,
+    custom: {
+      options: (value, { req, res }) => {
+        if (req.files && req.files.image) {
+          const file = req.files.image;
+          const validMimeTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp", "image/bmp"];
+          if (!validMimeTypes.includes(file.mimetype)) {
+            return res.status(400).json({
+              errorCode: "invalid_image_type",
+              errorMessage:
+                "Invalid image type. Only JPEG, PNG,jpg,webp and bmp are allowed.",
+            });
+          }
+          const maxSizeInBytes = 5 * 1024 * 1024; // 5 MB
+          if (file.size > maxSizeInBytes) {
+            throw new Error("Image file size should be less than 5MB");
+          }
+        }
+        return true;
+      },
+    },
+  },
+})
+
+const followUnfollowValidationSchema = [
+  param('id')
+    .notEmpty().withMessage('User ID is required')
+    .isMongoId().withMessage('Invalid user ID'),
+];
+
+const followersFollowingListValidationSchema = [
+  query('userId')
+    .optional()
+    .isMongoId().withMessage('Invalid userId'),
+  query('userName')
+    .optional()
+    .isString().withMessage('userName must be a string'),
+  query('page')
+    .optional()
+    .isInt({ min: 1 }).withMessage('page must be a positive integer'),
+];
 
 module.exports = {
   loginValidationSchema,
   registerValidationSchema,
   verifyTokenValidationSchema,
+  updateProfileValidationSchema,
+  followUnfollowValidationSchema,
+  followersFollowingListValidationSchema,
 };

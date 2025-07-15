@@ -30,10 +30,12 @@ app.use("/uploads", express.static(uploadsDirectory));
 // Import routes
 const dashboardRouter = require("./routes/dashboardRouter");
 const authRouter = require("./routes/api/v1/authRoutes")
+const userRouter = require("./routes/api/v1/userRoutes")
 
 
 app.use("/", dashboardRouter);
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/user", userRouter);
 
 // Start server
 app.listen(port, () => {

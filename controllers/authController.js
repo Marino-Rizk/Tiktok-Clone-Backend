@@ -29,9 +29,11 @@ exports.register = async (req, res) => {
             userName,
             email,
             password,
-            displayName: null,
+            displayName: userName,
             imageUrl: null,
-            blurhash: null
+            blurhash: null,
+            followers: null,
+            following: null
         });
 
         return res.status(201).json({
@@ -40,6 +42,12 @@ exports.register = async (req, res) => {
             userName: createdUser.userName
         });
     } catch (err) {
+        if (err.message === 'Username already exists') {
+            return res.status(409).json({
+                errorCode: "conflict",
+                errorMessage: "Username already exists",
+            });
+        }
         console.error("Error during registration:", err);
         return res.status(500).json({
             errorCode: "internal_server_error",
