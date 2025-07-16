@@ -124,6 +124,74 @@ const followersFollowingListValidationSchema = [
     .isInt({ min: 1 }).withMessage('page must be a positive integer'),
 ];
 
+const uploadVideoValidationSchema = [
+  // Caption is optional, but if present, must be a string
+  checkSchema({
+    caption: {
+      in: ["body"],
+      optional: true,
+      isString: {
+        errorMessage: "Caption must be a string",
+      },
+      isLength: {
+        options: { max: 300 },
+        errorMessage: "Caption must be at most 300 characters long",
+      },
+    },
+  }),
+  // Custom validator for files
+  (req, res, next) => {
+    if (!req.files || !req.files.video || !req.files.thumbnail) {
+      return res.status(400).json({
+        errorCode: "bad_request",
+        errorMessage: "Video and thumbnail files are required.",
+      });
+    }
+    // Validate video file type and size
+    const video = req.files.video;
+    const validVideoTypes = ["video/mp4", "video/quicktime", "video/x-matroska", "video/webm", "video/avi"];
+    if (!validVideoTypes.includes(video.mimetype)) {
+      return res.status(400).json({
+        errorCode: "invalid_video_type",
+        errorMessage: "Invalid video type. Only MP4, MOV, MKV, WEBM, AVI are allowed.",
+      });
+    }
+    const maxVideoSize = 50 * 1024 * 1024; // 50MB
+    if (video.size > maxVideoSize) {
+      return res.status(400).json({
+        errorCode: "video_too_large",
+        errorMessage: "Video file size should be less than 50MB.",
+      });
+    }
+    // Validate thumbnail file type and size
+    const thumbnail = req.files.thumbnail;
+    const validImageTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp", "image/bmp"];
+    if (!validImageTypes.includes(thumbnail.mimetype)) {
+      return res.status(400).json({
+        errorCode: "invalid_image_type",
+        errorMessage: "Invalid thumbnail type. Only JPEG, PNG, JPG, WEBP, BMP are allowed.",
+      });
+    }
+    const maxImageSize = 5 * 1024 * 1024; // 5MB
+    if (thumbnail.size > maxImageSize) {
+      return res.status(400).json({
+        errorCode: "image_too_large",
+        errorMessage: "Thumbnail file size should be less than 5MB.",
+      });
+    }
+    next();
+  },
+];
+
+const getVideosByUserValidationSchema = [
+  query('userId')
+    .optional()
+    .isMongoId().withMessage('Invalid userId'),
+  query('page')
+    .optional()
+    .isInt({ min: 1 }).withMessage('page must be a positive integer'),
+];
+
 module.exports = {
   loginValidationSchema,
   registerValidationSchema,
@@ -131,4 +199,6 @@ module.exports = {
   updateProfileValidationSchema,
   followUnfollowValidationSchema,
   followersFollowingListValidationSchema,
+  uploadVideoValidationSchema,
+  getVideosByUserValidationSchema,
 };

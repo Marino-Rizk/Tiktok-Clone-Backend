@@ -34,7 +34,8 @@ async function compressImage(imagePath) {
 
 async function compressVideo(videoPath) {
   return new Promise((resolve, reject) => {
-    const filename = path.basename(videoPath, path.extname(videoPath)) + '.mp4';
+    const ext = path.extname(videoPath);
+    const filename = path.basename(videoPath, ext) + '_compressed' + ext;
     const directory = path.dirname(videoPath);
     const outputPath = path.join(directory, filename);
     ffmpeg(videoPath)
@@ -64,10 +65,12 @@ async function compressFile(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   if ([".jpg", ".jpeg", ".png", ".webp", ".bmp"].includes(ext)) {
     await compressImage(filePath);
+    return filePath;
   } else if ([".mp4", ".mov", ".avi", ".mkv", ".webm"].includes(ext)) {
-    await compressVideo(filePath);
+    return await compressVideo(filePath);
   } else {
     console.log('Unsupported file type for compression:', ext);
+    return filePath;
   }
 }
 

@@ -27,17 +27,17 @@ const uploadsDirectory = path.join(__dirname, "uploads");
 // Serve the uploads directory as static files
 app.use("/uploads", express.static(uploadsDirectory));
 
-// Import routes
-const dashboardRouter = require("./routes/dashboardRouter");
-const authRouter = require("./routes/api/v1/authRoutes")
-const userRouter = require("./routes/api/v1/userRoutes")
 
+const dashboardRouter = require("./routes/dashboardRouter");
+const authRouter = require("./routes/api/v1/authRoutes");
+const userRouter = require("./routes/api/v1/userRoutes");
+const VideoRouter = require('./routes/api/v1/videoRoutes');
 
 app.use("/", dashboardRouter);
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/user", userRouter);
+app.use("/api/v1/videos",VideoRouter);
 
-// Start server
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 }); 
