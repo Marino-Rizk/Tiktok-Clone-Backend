@@ -26,6 +26,7 @@ router.get(
 
 router.get(
   '/view/:videoId',
+  validateBearerToken,
   videoController.addView,
 );
 
@@ -51,6 +52,12 @@ router.get(
   '/comment/:videoId',
   validateBearerToken,
   videoController.getComments
+);
+
+router.post(
+  '/recommend',
+  validateBearerToken,
+  videoController.getHomeRecommendations
 );
 
 module.exports = router;

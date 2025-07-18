@@ -3,6 +3,7 @@ const app = express();
 const path = require("path");
 require("dotenv").config();
 const port = process.env.PORT || 3000;
+const RECOMMENDATION_API_URL = process.env.RECOMMENDATION_API_URL || "http://localhost:5000";
 const fileUpload = require("express-fileupload");
 const mongoose = require('mongoose');
 
@@ -27,6 +28,8 @@ const uploadsDirectory = path.join(__dirname, "uploads");
 // Serve the uploads directory as static files
 app.use("/uploads", express.static(uploadsDirectory));
 
+// Make RECOMMENDATION_API_URL available globally if needed
+app.locals.RECOMMENDATION_API_URL = RECOMMENDATION_API_URL;
 
 const dashboardRouter = require("./routes/dashboardRouter");
 const authRouter = require("./routes/api/v1/authRoutes");
@@ -40,4 +43,9 @@ app.use("/api/v1/videos",VideoRouter);
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
-}); 
+});
+
+// .env requirements for backend:
+// MONGODB_URI=mongodb://localhost:27017/yourdbname
+// PORT=3000
+// RECOMMENDATION_API_URL=http://localhost:5000 

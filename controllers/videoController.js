@@ -6,6 +6,8 @@ const path = require("path");
 const { validationResult } = require("express-validator");
 const Like = require("../models/Like");
 const Comment = require("../models/Comment");
+const View = require("../models/View");
+const axios = require("axios");
 
 exports.uploadVideo = async (req, res) => {
     const errors = validationResult(req);
@@ -107,23 +109,34 @@ exports.getVideosByUser = async (req, res) => {
 
 exports.addView = async (req, res) => {
     try {
+        const userId = req.user && req.user.id;
         const { videoId } = req.params;
-        const video = await Video.findByIdAndUpdate(
-            videoId,
-            { $inc: { views: 1 } },
-            { new: true }
-        );
+        if (!userId) {
+            return res.status(401).json({ errorCode: "unauthorized", errorMessage: "Authentication required" });
+        }
+        // Check if the user has already viewed this video
+        const existingView = await View.findOne({ userId, videoId });
+        let isFirstView = false;
+        if (!existingView) {
+            // Save the view
+            await View.create({ userId, videoId });
+            // Increment the view count
+            await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } });
+            isFirstView = true;
+        }
+        // Return the updated video
+        const video = await Video.findById(videoId);
         if (!video) {
             return res.status(404).json({ errorCode: "not_found", errorMessage: "Video not found" });
         }
         appendMainUrlToKey(video, "videoUrl");
         appendMainUrlToKey(video, "thumbnailUrl");
-        return res.status(200).json({ video });
+        return res.status(200).json({ video, isFirstView });
     } catch (err) {
-        console.error("Error fetching video:", err);
+        console.error("Error adding view:", err);
         return res.status(500).json({
             errorCode: "internal_server_error",
-            errorMessage: "An error occurred while fetching video",
+            errorMessage: "An error occurred while adding view",
         });
     }
 };
@@ -189,5 +202,20 @@ exports.getComments = async (req, res) => {
     } catch (err) {
         console.error("Error fetching comments:", err);
         return res.status(500).json({ errorCode: "internal_server_error", errorMessage: "An error occurred while fetching comments" });
+    }
+};
+
+exports.getHomeRecommendations = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const apiUrl = req.app.locals.RECOMMENDATION_API_URL + "/recommend";
+        const response = await axios.post(apiUrl, { userId });
+        return res.status(200).json(response.data);
+    } catch (err) {
+        console.error("Error fetching recommendations:", err.response ? err.response.data : err.message);
+        return res.status(500).json({
+            errorCode: "recommendation_error",
+            errorMessage: err.response && err.response.data ? err.response.data : err.message,
+        });
     }
 };
