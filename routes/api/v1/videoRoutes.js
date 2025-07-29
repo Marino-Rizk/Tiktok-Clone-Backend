@@ -54,7 +54,7 @@ router.get(
   videoController.getComments
 );
 
-router.get(
+router.post(
   '/recommend',
   validateBearerToken,
   videoController.getHomeRecommendations
