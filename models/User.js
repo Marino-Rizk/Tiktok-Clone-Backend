@@ -23,10 +23,6 @@ UserSchema.pre('save', async function (next) {
 
 UserSchema.statics.findByEmail = async function (email) {
     const user = await this.findOne({ email });
-    if (user) {
-        helper.appendMainUrlToKey(user, 'imageUrl');
-        helper.appendMainUrlToKey(user, 'blurhash');
-    }
     return user;
 };
 
@@ -45,10 +41,6 @@ UserSchema.statics.createUser = async function (userData) {
 
 UserSchema.statics.findByIdWithUrls = async function (id) {
     const user = await this.findOne({ _id: id });
-    if (user) {
-        helper.appendMainUrlToKey(user, 'imageUrl');
-        helper.appendMainUrlToKey(user, 'blurhash');
-    }
     return user;
 };
 

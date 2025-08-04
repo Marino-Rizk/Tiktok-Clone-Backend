@@ -65,7 +65,7 @@ function appendMainUrlToKey(jsonObj, key) {
 
   if (jsonObj && process.env.MAIN_URL) {
     const updateKey = (obj) => {
-      if (obj[key]) {
+      if (obj[key] && !obj[key].startsWith('http')) {
         obj[key] = process.env.MAIN_URL + obj[key];
       }
     };

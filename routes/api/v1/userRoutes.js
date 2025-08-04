@@ -46,5 +46,10 @@ router.post(
   userController.unfollowUser
 );
 
+router.get(
+  "/search",
+  validateBearerToken,
+  userController.searchUsers
+);
 
 module.exports = router;

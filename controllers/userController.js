@@ -1,7 +1,7 @@
 const User = require("../models/User");
 const compressFile = require("../utils/compressFile");
 const getBlurHash = require("../utils/blurhash");
-const { uploadAndRenameFile } = require("../utils/helper");
+const { uploadAndRenameFile, appendMainUrlToKey } = require("../utils/helper");
 const path = require("path");
 const { validationResult } = require("express-validator");
 
@@ -41,6 +41,11 @@ exports.updateProfile = async (req, res) => {
         }
 
         const updatedUser = await User.updateProfile(userId, updateFields);
+        
+        // Append main URL to imageUrl and blurhash
+        appendMainUrlToKey(updatedUser, 'imageUrl');
+        appendMainUrlToKey(updatedUser, 'blurhash');
+        
         return res.status(200).json({
             id: updatedUser.id,
             email: updatedUser.email,
@@ -84,6 +89,11 @@ exports.getProfile = async (req, res) => {
         // Use User model static methods for counts
         const followersCount = await User.getFollowersCount(user._id);
         const followingCount = await User.getFollowingCount(user._id);
+        
+        // Append main URL to imageUrl and blurhash
+        appendMainUrlToKey(user, 'imageUrl');
+        appendMainUrlToKey(user, 'blurhash');
+        
         return res.status(200).json({
             id: user.id,
             email: user.email,
@@ -128,6 +138,11 @@ exports.getFollowers = async (req, res) => {
         const pageNum = Math.max(1, parseInt(page));
         const limit = 12;
         const followers = await User.getFollowersPaginated(user._id, pageNum, limit);
+        
+        // Append main URL to imageUrl for all followers
+        appendMainUrlToKey(followers, 'imageUrl');
+        appendMainUrlToKey(followers, 'blurhash');
+        
         return res.status(200).json({
             followers,
             page: pageNum,
@@ -167,6 +182,11 @@ exports.getFollowing = async (req, res) => {
         const pageNum = Math.max(1, parseInt(page));
         const limit = 12;
         const following = await User.getFollowingPaginated(user._id, pageNum, limit);
+        
+        // Append main URL to imageUrl for all following
+        appendMainUrlToKey(following, 'imageUrl');
+        appendMainUrlToKey(following, 'blurhash');
+        
         return res.status(200).json({
             following,
             page: pageNum,
@@ -200,5 +220,64 @@ exports.unfollowUser = async (req, res) => {
         return res.status(200).json({ message: 'Unfollowed successfully' });
     } catch (err) {
         return res.status(400).json({ errorCode: 'unfollow_error', errorMessage: err.message });
+    }
+};
+
+exports.searchUsers = async (req, res) => {
+    try {
+        const { q: searchQuery, page = 1 } = req.query;
+        
+        if (!searchQuery || !searchQuery.trim()) {
+            return res.status(400).json({
+                errorCode: "bad_request",
+                errorMessage: "Search query is required",
+            });
+        }
+
+        const pageNum = Math.max(1, parseInt(page));
+        const limit = 12;
+        const skip = (pageNum - 1) * limit;
+
+        // Create case-insensitive regex pattern
+        const searchRegex = new RegExp(searchQuery.trim(), 'i');
+
+        // Search in both userName and displayName fields
+        const [users, total] = await Promise.all([
+            User.find({
+                $or: [
+                    { userName: searchRegex },
+                    { displayName: searchRegex }
+                ]
+            })
+            .select('id email userName displayName imageUrl blurhash')
+            .skip(skip)
+            .limit(limit)
+            .sort({ userName: 1 }),
+            User.countDocuments({
+                $or: [
+                    { userName: searchRegex },
+                    { displayName: searchRegex }
+                ]
+            })
+        ]);
+
+        // Append main URL to imageUrl for all users
+        users.forEach(user => {
+            appendMainUrlToKey(user, 'imageUrl');
+        });
+
+        return res.status(200).json({
+            users,
+            page: pageNum,
+            pageSize: limit,
+            total,
+            hasMore: skip + users.length < total
+        });
+    } catch (err) {
+        console.error("Error searching users:", err);
+        return res.status(500).json({
+            errorCode: "internal_server_error",
+            errorMessage: "An error occurred while searching users",
+        });
     }
 };

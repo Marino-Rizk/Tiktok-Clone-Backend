@@ -60,4 +60,10 @@ router.post(
   videoController.getHomeRecommendations
 );
 
+router.get(
+  '/search',
+  validateBearerToken,
+  videoController.searchVideos
+);
+
 module.exports = router;

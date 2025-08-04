@@ -124,13 +124,19 @@ exports.addView = async (req, res) => {
             await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } });
             isFirstView = true;
         }
-        // Return the updated video
-        const video = await Video.findById(videoId);
+        // Return the updated video with user data
+        const video = await Video.findById(videoId).populate('userId', 'userName displayName imageUrl');
         if (!video) {
             return res.status(404).json({ errorCode: "not_found", errorMessage: "Video not found" });
         }
         appendMainUrlToKey(video, "videoUrl");
         appendMainUrlToKey(video, "thumbnailUrl");
+        
+        // Append main URL to user imageUrl
+        if (video.userId && video.userId.imageUrl) {
+            appendMainUrlToKey(video.userId, 'imageUrl');
+        }
+        
         return res.status(200).json({ video, isFirstView });
     } catch (err) {
         console.error("Error adding view:", err);
@@ -198,6 +204,14 @@ exports.getComments = async (req, res) => {
         const comments = await Comment.find({ videoId })
             .sort({ createdAt: -1 })
             .populate('userId', 'userName displayName imageUrl');
+        
+        // Append main URL to user imageUrl in all comments
+        comments.forEach(comment => {
+            if (comment.userId && comment.userId.imageUrl) {
+                appendMainUrlToKey(comment.userId, 'imageUrl');
+            }
+        });
+        
         return res.status(200).json({ comments });
     } catch (err) {
         console.error("Error fetching comments:", err);
@@ -216,6 +230,61 @@ exports.getHomeRecommendations = async (req, res) => {
         return res.status(500).json({
             errorCode: "recommendation_error",
             errorMessage: err.response && err.response.data ? err.response.data : err.message,
+        });
+    }
+};
+
+exports.searchVideos = async (req, res) => {
+    try {
+        const { q: searchQuery, page = 1 } = req.query;
+        
+        if (!searchQuery || !searchQuery.trim()) {
+            return res.status(400).json({
+                errorCode: "bad_request",
+                errorMessage: "Search query is required",
+            });
+        }
+
+        const pageNum = Math.max(1, parseInt(page));
+        const limit = 9;
+        const skip = (pageNum - 1) * limit;
+
+        // Create case-insensitive regex pattern
+        const searchRegex = new RegExp(searchQuery.trim(), 'i');
+
+        // Search in caption field and populate user information
+        const [videos, total] = await Promise.all([
+            Video.find({ caption: searchRegex })
+                .populate('userId', 'userName displayName imageUrl')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit),
+            Video.countDocuments({ caption: searchRegex })
+        ]);
+
+        // Append main URL to video and thumbnail in all videos
+        appendMainUrlToKey(videos, "videoUrl");
+        appendMainUrlToKey(videos, "thumbnailUrl");
+        
+        // Append main URL to user imageUrl in all videos
+        videos.forEach(video => {
+            if (video.userId && video.userId.imageUrl) {
+                appendMainUrlToKey(video.userId, 'imageUrl');
+            }
+        });
+
+        return res.status(200).json({
+            videos,
+            page: pageNum,
+            pageSize: limit,
+            total,
+            hasMore: skip + videos.length < total
+        });
+    } catch (err) {
+        console.error("Error searching videos:", err);
+        return res.status(500).json({
+            errorCode: "internal_server_error",
+            errorMessage: "An error occurred while searching videos",
         });
     }
 };
