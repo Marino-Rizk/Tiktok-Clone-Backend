@@ -66,4 +66,16 @@ router.get(
   videoController.searchVideos
 );
 
+router.get(
+  '/likes/:videoId',
+  validateBearerToken,
+  videoController.getLikesForVideo
+);
+
+router.get(
+  '/likes',
+  validateBearerToken,
+  videoController.getLikesForAllVideos
+);
+
 module.exports = router;

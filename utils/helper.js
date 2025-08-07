@@ -83,6 +83,10 @@ function appendMainUrlToKey(jsonObj, key) {
 }
 
 
+module.exports = appendMainUrlToKey;
+
+
+
 module.exports = {
   isTokenValid,
   removeSpaces,

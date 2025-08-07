@@ -32,8 +32,8 @@ exports.register = async (req, res) => {
             displayName: userName,
             imageUrl: null,
             blurhash: null,
-            followers: null,
-            following: null
+            followers: [],
+            following: []
         });
 
         return res.status(201).json({

@@ -8,6 +8,7 @@ const Like = require("../models/Like");
 const Comment = require("../models/Comment");
 const View = require("../models/View");
 const axios = require("axios");
+const mongoose = require('mongoose');
 
 exports.uploadVideo = async (req, res) => {
     const errors = validationResult(req);
@@ -114,6 +115,14 @@ exports.addView = async (req, res) => {
         if (!userId) {
             return res.status(401).json({ errorCode: "unauthorized", errorMessage: "Authentication required" });
         }
+        // Validate videoId
+        if (!videoId || !mongoose.Types.ObjectId.isValid(videoId)) {
+            return res.status(400).json({ errorCode: "bad_request", errorMessage: "Invalid or missing videoId" });
+        }
+        const video = await Video.findById(videoId);
+        if (!video) {
+            return res.status(404).json({ errorCode: "not_found", errorMessage: "Video not found" });
+        }
         // Check if the user has already viewed this video
         const existingView = await View.findOne({ userId, videoId });
         let isFirstView = false;
@@ -125,19 +134,14 @@ exports.addView = async (req, res) => {
             isFirstView = true;
         }
         // Return the updated video with user data
-        const video = await Video.findById(videoId).populate('userId', 'userName displayName imageUrl');
-        if (!video) {
-            return res.status(404).json({ errorCode: "not_found", errorMessage: "Video not found" });
-        }
-        appendMainUrlToKey(video, "videoUrl");
-        appendMainUrlToKey(video, "thumbnailUrl");
-        
+        const populatedVideo = await Video.findById(videoId).populate('userId', 'userName displayName imageUrl');
+        appendMainUrlToKey(populatedVideo, "videoUrl");
+        appendMainUrlToKey(populatedVideo, "thumbnailUrl");
         // Append main URL to user imageUrl
-        if (video.userId && video.userId.imageUrl) {
-            appendMainUrlToKey(video.userId, 'imageUrl');
+        if (populatedVideo.userId && populatedVideo.userId.imageUrl) {
+            appendMainUrlToKey(populatedVideo.userId, 'imageUrl');
         }
-        
-        return res.status(200).json({ video, isFirstView });
+        return res.status(200).json({ video: populatedVideo, isFirstView });
     } catch (err) {
         console.error("Error adding view:", err);
         return res.status(500).json({
@@ -151,6 +155,10 @@ exports.likeVideo = async (req, res) => {
     try {
         const userId = req.user.id;
         const { videoId } = req.params;
+        const video = await Video.findById(videoId);
+        if (!video) {
+            return res.status(404).json({ errorCode: "not_found", errorMessage: "Video not found" });
+        }
         const existingLike = await Like.findOne({ userId, videoId });
         if (existingLike) {
             return res.status(400).json({ errorCode: "already_liked", errorMessage: "Video already liked" });
@@ -168,6 +176,10 @@ exports.dislikeVideo = async (req, res) => {
     try {
         const userId = req.user.id;
         const { videoId } = req.params;
+        const video = await Video.findById(videoId);
+        if (!video) {
+            return res.status(404).json({ errorCode: "not_found", errorMessage: "Video not found" });
+        }
         const existingLike = await Like.findOne({ userId, videoId });
         if (!existingLike) {
             return res.status(400).json({ errorCode: "not_liked", errorMessage: "Video not liked yet" });
@@ -186,6 +198,10 @@ exports.addComment = async (req, res) => {
         const userId = req.user.id;
         const { videoId } = req.params;
         const { text } = req.body;
+        const video = await Video.findById(videoId);
+        if (!video) {
+            return res.status(404).json({ errorCode: "not_found", errorMessage: "Video not found" });
+        }
         if (!text || !text.trim()) {
             return res.status(400).json({ errorCode: "empty_comment", errorMessage: "Comment text is required" });
         }
@@ -201,17 +217,19 @@ exports.addComment = async (req, res) => {
 exports.getComments = async (req, res) => {
     try {
         const { videoId } = req.params;
+        const video = await Video.findById(videoId);
+        if (!video) {
+            return res.status(404).json({ errorCode: "not_found", errorMessage: "Video not found" });
+        }
         const comments = await Comment.find({ videoId })
             .sort({ createdAt: -1 })
             .populate('userId', 'userName displayName imageUrl');
-        
         // Append main URL to user imageUrl in all comments
         comments.forEach(comment => {
             if (comment.userId && comment.userId.imageUrl) {
                 appendMainUrlToKey(comment.userId, 'imageUrl');
             }
         });
-        
         return res.status(200).json({ comments });
     } catch (err) {
         console.error("Error fetching comments:", err);
@@ -285,6 +303,44 @@ exports.searchVideos = async (req, res) => {
         return res.status(500).json({
             errorCode: "internal_server_error",
             errorMessage: "An error occurred while searching videos",
+        });
+    }
+};
+
+// Get number of likes for a single video
+exports.getLikesForVideo = async (req, res) => {
+    try {
+        const { videoId } = req.params;
+        const video = await Video.findById(videoId);
+        if (!video) {
+            return res.status(404).json({ errorCode: "not_found", errorMessage: "Video not found" });
+        }
+        const likeCount = await Like.countDocuments({ videoId });
+        return res.status(200).json({ videoId, likeCount });
+    } catch (err) {
+        console.error("Error getting like count for video:", err);
+        return res.status(500).json({
+            errorCode: "internal_server_error",
+            errorMessage: "An error occurred while getting like count for video",
+        });
+    }
+};
+
+// Get number of likes for all videos
+exports.getLikesForAllVideos = async (req, res) => {
+    try {
+        // Aggregate like counts grouped by videoId
+        const likeCounts = await Like.aggregate([
+            { $group: { _id: "$videoId", likeCount: { $sum: 1 } } }
+        ]);
+        // Format result as { videoId, likeCount }
+        const result = likeCounts.map(item => ({ videoId: item._id, likeCount: item.likeCount }));
+        return res.status(200).json({ videos: result });
+    } catch (err) {
+        console.error("Error getting like counts for all videos:", err);
+        return res.status(500).json({
+            errorCode: "internal_server_error",
+            errorMessage: "An error occurred while getting like counts for all videos",
         });
     }
 };

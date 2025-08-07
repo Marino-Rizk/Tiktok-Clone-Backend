@@ -139,12 +139,23 @@ exports.getFollowers = async (req, res) => {
         const limit = 12;
         const followers = await User.getFollowersPaginated(user._id, pageNum, limit);
         
+        // Get current user to check follow status
+        const currentUserId = req.user.id;
+        const currentUser = await User.findByIdWithUrls(currentUserId);
+        
+        // Add follow status to each follower
+        const followersWithFollowStatus = followers.map(follower => {
+            const followerObj = follower.toObject();
+            followerObj.isFollowing = currentUser.following.includes(follower._id);
+            return followerObj;
+        });
+        
         // Append main URL to imageUrl for all followers
-        appendMainUrlToKey(followers, 'imageUrl');
-        appendMainUrlToKey(followers, 'blurhash');
+        appendMainUrlToKey(followersWithFollowStatus, 'imageUrl');
+        appendMainUrlToKey(followersWithFollowStatus, 'blurhash');
         
         return res.status(200).json({
-            followers,
+            followers: followersWithFollowStatus,
             page: pageNum,
             pageSize: limit,
         });
@@ -183,12 +194,23 @@ exports.getFollowing = async (req, res) => {
         const limit = 12;
         const following = await User.getFollowingPaginated(user._id, pageNum, limit);
         
+        // Get current user to check follow status
+        const currentUserId = req.user.id;
+        const currentUser = await User.findByIdWithUrls(currentUserId);
+        
+        // Add follow status to each following user
+        const followingWithFollowStatus = following.map(followingUser => {
+            const followingUserObj = followingUser.toObject();
+            followingUserObj.isFollowing = currentUser.following.includes(followingUser._id);
+            return followingUserObj;
+        });
+        
         // Append main URL to imageUrl for all following
-        appendMainUrlToKey(following, 'imageUrl');
-        appendMainUrlToKey(following, 'blurhash');
+        appendMainUrlToKey(followingWithFollowStatus, 'imageUrl');
+        appendMainUrlToKey(followingWithFollowStatus, 'blurhash');
         
         return res.status(200).json({
-            following,
+            following: followingWithFollowStatus,
             page: pageNum,
             pageSize: limit,
         });
@@ -241,12 +263,20 @@ exports.searchUsers = async (req, res) => {
         // Create case-insensitive regex pattern
         const searchRegex = new RegExp(searchQuery.trim(), 'i');
 
-        // Search in both userName and displayName fields
+        // Get the current user's ID to exclude from search results
+        const currentUserId = req.user.id;
+
+        // Search in both userName and displayName fields, excluding the current user
         const [users, total] = await Promise.all([
             User.find({
-                $or: [
-                    { userName: searchRegex },
-                    { displayName: searchRegex }
+                $and: [
+                    {
+                        $or: [
+                            { userName: searchRegex },
+                            { displayName: searchRegex }
+                        ]
+                    },
+                    { _id: { $ne: currentUserId } }
                 ]
             })
             .select('id email userName displayName imageUrl blurhash')
@@ -254,20 +284,35 @@ exports.searchUsers = async (req, res) => {
             .limit(limit)
             .sort({ userName: 1 }),
             User.countDocuments({
-                $or: [
-                    { userName: searchRegex },
-                    { displayName: searchRegex }
+                $and: [
+                    {
+                        $or: [
+                            { userName: searchRegex },
+                            { displayName: searchRegex }
+                        ]
+                    },
+                    { _id: { $ne: currentUserId } }
                 ]
             })
         ]);
 
+        // Get current user to check follow status
+        const currentUser = await User.findByIdWithUrls(currentUserId);
+        
+        // Add follow status to each user
+        const usersWithFollowStatus = users.map(user => {
+            const userObj = user.toObject();
+            userObj.isFollowing = currentUser.following.includes(user._id);
+            return userObj;
+        });
+
         // Append main URL to imageUrl for all users
-        users.forEach(user => {
+        usersWithFollowStatus.forEach(user => {
             appendMainUrlToKey(user, 'imageUrl');
         });
 
         return res.status(200).json({
-            users,
+            users: usersWithFollowStatus,
             page: pageNum,
             pageSize: limit,
             total,
