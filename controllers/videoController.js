@@ -207,7 +207,13 @@ exports.addComment = async (req, res) => {
         }
         const comment = await Comment.create({ userId, videoId, text });
         await Video.findByIdAndUpdate(videoId, { $inc: { commentCount: 1 } });
-        return res.status(201).json({ message: "Comment added", comment });
+        // Populate user info for immediate UI rendering
+        const populatedComment = await Comment.findById(comment._id)
+            .populate('userId', 'userName displayName imageUrl');
+        if (populatedComment?.userId?.imageUrl) {
+            appendMainUrlToKey(populatedComment.userId, 'imageUrl');
+        }
+        return res.status(201).json({ message: "Comment added", comment: populatedComment });
     } catch (err) {
         console.error("Error adding comment:", err);
         return res.status(500).json({ errorCode: "internal_server_error", errorMessage: "An error occurred while adding comment" });
@@ -242,7 +248,13 @@ exports.getHomeRecommendations = async (req, res) => {
         const userId = req.user.id;
         const apiUrl = req.app.locals.RECOMMENDATION_API_URL + "/recommend";
         const response = await axios.post(apiUrl, { userId });
-        return res.status(200).json(response.data);
+        const data = response.data;
+        // Ensure absolute URLs for any media paths returned by the recommendation service
+        if (data && Array.isArray(data.recommended)) {
+            appendMainUrlToKey(data.recommended, 'videoUrl');
+            appendMainUrlToKey(data.recommended, 'thumbnailUrl');
+        }
+        return res.status(200).json(data);
     } catch (err) {
         console.error("Error fetching recommendations:", err.response ? err.response.data : err.message);
         return res.status(500).json({

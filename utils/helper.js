@@ -62,21 +62,23 @@ function uploadAndRenameFile(file) {
 
 function appendMainUrlToKey(jsonObj, key) {
   // Helper function to update a key's value
+  if (!jsonObj) return jsonObj;
 
-  if (jsonObj && process.env.MAIN_URL) {
-    const updateKey = (obj) => {
-      if (obj[key] && !obj[key].startsWith('http')) {
-        obj[key] = process.env.MAIN_URL + obj[key];
-      }
-    };
+  const base = (process.env.MAIN_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
 
-    // If the JSON object is an array, iterate through each item
-    if (Array.isArray(jsonObj)) {
-      jsonObj.forEach((item) => updateKey(item));
-    } else {
-      // Otherwise, update the single object
-      updateKey(jsonObj);
-    }
+  const updateKey = (obj) => {
+    if (!obj || !obj[key]) return;
+    const value = obj[key];
+    if (typeof value !== 'string') return;
+    if (value.startsWith('http')) return;
+    const normalizedPath = value.startsWith('/') ? value : `/${value}`;
+    obj[key] = `${base}${normalizedPath}`;
+  };
+
+  if (Array.isArray(jsonObj)) {
+    jsonObj.forEach((item) => updateKey(item));
+  } else {
+    updateKey(jsonObj);
   }
 
   return jsonObj;
